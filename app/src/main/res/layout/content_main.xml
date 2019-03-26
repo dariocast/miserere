@@ -8,14 +8,19 @@
     tools:context=".MainActivity"
     tools:showIn="@layout/activity_main">
 
-    <TextView
-        android:id="@+id/text_out"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/miserere"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    <fragment xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:map="http://schemas.android.com/apk/res-auto"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:id="@+id/map"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        map:cameraZoom="17"
+        map:mapType="hybrid"
+        map:uiCompass="true"
+        map:uiRotateGestures="false"
+        map:uiScrollGestures="true"
+        map:uiTiltGestures="false"
+        map:uiZoomControls="false"
+        map:uiZoomGestures="true"/>
 
 </android.support.constraint.ConstraintLayout>
