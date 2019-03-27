@@ -1,6 +1,8 @@
 package it.dariocast.miserere;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -11,6 +13,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.R.drawable.*;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
@@ -18,6 +21,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.ButtCap;
 import com.google.android.gms.maps.model.CustomCap;
@@ -47,7 +51,7 @@ import okhttp3.Response;
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
-    public List<CoppiaCoordinate> lista;
+    public List<Coordinate> lista;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,34 +99,46 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        refreshMap();
+    }
+
+    private void refreshMap() {
         try {
-            lista = new CoordGetterTask().execute().get();
-            refreshMap();
+            lista = new CoordTesteGetterTask().execute().get();
         } catch (ExecutionException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-    }
-
-    private void refreshMap() {
-        LatLng nuovaPosizione = null;
-        for (CoppiaCoordinate coppia: lista) {
-            LatLng coordTesta = new LatLng(coppia.testa.lat, coppia.testa.lon);
-            LatLng coordCoda = new LatLng(coppia.coda.lat, coppia.coda.lon);
-            Polyline processione = mMap.addPolyline((new PolylineOptions()
-                    .add(coordTesta,coordCoda)
-                    .color(Color.RED)
-                    .startCap(new RoundCap())
-                    )
-            );
-            processione.setTag(coppia.testa.confraternita);
-            mMap.addMarker(new MarkerOptions().position(coordTesta).title(coppia.testa.confraternita));
-            if (nuovaPosizione==null) {
-                nuovaPosizione=coordTesta;
+        if (lista.isEmpty()) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this)
+                    .setTitle(R.string.empty_list_title)
+                    .setMessage(R.string.empty_list_msg)
+                    .setIcon(android.R.drawable.stat_notify_error)
+                    .setCancelable(false)
+                    .setPositiveButton(R.string.refresh, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            dialogInterface.dismiss();
+                            refreshMap();
+                        }
+                    });
+            builder.show();
+        } else {
+            LatLng nuovaPosizione = null;
+            for (Coordinate coordinate: lista) {
+                LatLng coordTesta = new LatLng(coordinate.lat, coordinate.lon);
+                mMap.addMarker(new MarkerOptions()
+                        .position(coordTesta)
+                        .title(coordinate.confraternita)
+                        .icon(getMarkerIcon(coordinate.colore))
+                );
+                if (nuovaPosizione==null) {
+                    nuovaPosizione=coordTesta;
+                }
             }
+            mMap.animateCamera(CameraUpdateFactory.newLatLng(nuovaPosizione));
         }
-        mMap.animateCamera(CameraUpdateFactory.newLatLng(nuovaPosizione));
     }
 
     public boolean isGooglePlayServicesAvailable(Activity activity) {
@@ -135,6 +151,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             return false;
         }
         return true;
+    }
+
+    public BitmapDescriptor getMarkerIcon(String color) {
+        float[] hsv = new float[3];
+        Color.colorToHSV(Color.parseColor(color), hsv);
+        return BitmapDescriptorFactory.defaultMarker(hsv[0]);
     }
 }
 
@@ -163,16 +185,19 @@ class CoordGetterTask extends AsyncTask<Void, Void, List<CoppiaCoordinate>> {
                 for (int i = 0; i < coordinate.length(); i++) {
                     JSONObject coordinata = coordinate.getJSONObject(i);
                     String confraternita = coordinata.getString("confraternita");
+                    String colore = coordinata.getString("colore");
                     double lat = Double.parseDouble(coordinata.getJSONObject("coordinate").getString("lat"));
                     double lon = Double.parseDouble(coordinata.getJSONObject("coordinate").getString("lon"));
                     String estremo = coordinata.getJSONObject("coordinate").getString("estremo");
 
-                    coordTrovate.add(new Coordinate(confraternita,lat,lon,estremo));
+                    coordTrovate.add(new Coordinate(confraternita, colore, lat,lon,estremo));
                 }
             }
         } catch (IOException e) {
+            Log.e(TAG,e.getMessage());
             e.printStackTrace();
         } catch (JSONException e) {
+            Log.e(TAG,e.getMessage());
             e.printStackTrace();
         }
 
@@ -191,5 +216,50 @@ class CoordGetterTask extends AsyncTask<Void, Void, List<CoppiaCoordinate>> {
             coppie.add(new CoppiaCoordinate(testa.getValue(),code.get(testa.getKey())));
         }
         return coppie;
+    }
+}
+
+class CoordTesteGetterTask extends AsyncTask<Void, Void, List<Coordinate>> {
+    private static final String TAG = "CoordTesteGetterTask";
+    private static final String coordEndpoint = "https://dariocast.altervista.org/miserere/api/coordinate.php";
+    private OkHttpClient client;
+    private Request request;
+
+    CoordTesteGetterTask() {
+        client = new OkHttpClient();
+        request = new Request.Builder()
+                .url(coordEndpoint)
+                .build();
+    }
+
+    @Override
+    protected List<Coordinate> doInBackground(Void... voids) {
+        JSONArray coordinate = null;
+        List<Coordinate> coordTeste = new ArrayList<>();
+        try (Response response = client.newCall(request).execute()) {
+            Log.d(TAG,"Ottengo response");
+            coordinate = new JSONArray(response.body().string());
+
+            if (coordinate.length()>0) {
+                for (int i = 0; i < coordinate.length(); i++) {
+                    JSONObject coordinata = coordinate.getJSONObject(i);
+                    String confraternita = coordinata.getString("confraternita");
+                    String colore = coordinata.getString("colore");
+                    double lat = Double.parseDouble(coordinata.getJSONObject("coordinate").getString("lat"));
+                    double lon = Double.parseDouble(coordinata.getJSONObject("coordinate").getString("lon"));
+                    String estremo = coordinata.getJSONObject("coordinate").getString("estremo");
+
+                    coordTeste.add(new Coordinate(confraternita, colore,lat,lon,estremo));
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        Log.d(TAG,"Coordinate trovate: "+coordTeste.toString());
+
+        return coordTeste;
     }
 }
