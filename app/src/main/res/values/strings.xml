@@ -3,4 +3,7 @@
     <string name="action_settings">Settings</string>
     <string name="miserere">Miserere</string>
     <string name="title_activity_map">Map</string>
+    <string name="empty_list_title">Nessuna informazione</string>
+    <string name="empty_list_msg">Non è stata trovata alcuna informazione per le processioni in zona, prova a ricaricare la mappa</string>
+    <string name="refresh">Ricarica</string>
 </resources>

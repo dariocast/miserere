@@ -2,12 +2,14 @@ package it.dariocast.miserere.classi;
 
 public class Coordinate {
     public String confraternita;
+    public String colore;
     public double lat;
     public double lon;
     public String estremo;
 
-    public Coordinate(String confraternita, double lat, double lon, String estremo) {
+    public Coordinate(String confraternita, String colore, double lat, double lon, String estremo) {
         this.confraternita = confraternita;
+        this.colore = colore;
         this.lat = lat;
         this.lon = lon;
         this.estremo = estremo;
