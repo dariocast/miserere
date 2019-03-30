@@ -6,4 +6,17 @@
     <string name="empty_list_title">Nessuna informazione</string>
     <string name="empty_list_msg">Non è stata trovata alcuna informazione per le processioni in zona, prova a ricaricare la mappa</string>
     <string name="refresh">Ricarica</string>
+    <string name="start_loc">Trasmetti posizione</string>
+    <string name="stop_loc">Termina trasmissione</string>
+    <string name="channelid">locationservice_channel</string>
+    <string name="confraternita">confraternita</string>
+
+    <string-array name="colori">
+        <item>Rosso</item>
+        <item>Nero</item>
+        <item>Bianco</item>
+        <item>Celeste</item>
+        <item>Blu</item>
+        <item>Viola</item>
+    </string-array>
 </resources>

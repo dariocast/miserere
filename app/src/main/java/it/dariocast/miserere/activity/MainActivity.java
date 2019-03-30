@@ -1,8 +1,9 @@
-package it.dariocast.miserere;
+package it.dariocast.miserere.activity;
 
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -10,10 +11,9 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.R.drawable.*;
+import android.view.View;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
@@ -23,13 +23,8 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.ButtCap;
-import com.google.android.gms.maps.model.CustomCap;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.Polyline;
-import com.google.android.gms.maps.model.PolylineOptions;
-import com.google.android.gms.maps.model.RoundCap;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -37,13 +32,12 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import it.dariocast.miserere.R;
+import it.dariocast.miserere.classi.Confraternita;
 import it.dariocast.miserere.classi.Coordinate;
-import it.dariocast.miserere.classi.CoppiaCoordinate;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -90,7 +84,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
-            return true;
+            Intent i = new Intent();
+            i.setClass(MainActivity.this,LocationActivity.class);
+            startActivity(i);
         }
 
         return super.onOptionsItemSelected(item);
@@ -127,11 +123,21 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         } else {
             LatLng nuovaPosizione = null;
             for (Coordinate coordinate: lista) {
+                Confraternita confraternita = null;
+                try {
+                    confraternita = new ConfraternitaByIdTask().execute(coordinate.confraternitaId).get();
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 LatLng coordTesta = new LatLng(coordinate.lat, coordinate.lon);
                 mMap.addMarker(new MarkerOptions()
                         .position(coordTesta)
-                        .title(coordinate.confraternita)
-                        .icon(getMarkerIcon(coordinate.colore))
+                        .title(confraternita!=null?confraternita.nome:"Confraternita con id "+coordinate.confraternitaId)
+                        .icon(getMarkerIcon(confraternita!=null?confraternita.colore:"#000000"))
+//                        .icon(BitmapDescriptorFactory.fromAsset(coordinate.colore.toLowerCase()+".bmp"))
+
                 );
                 if (nuovaPosizione==null) {
                     nuovaPosizione=coordTesta;
@@ -160,64 +166,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 }
 
-class CoordGetterTask extends AsyncTask<Void, Void, List<CoppiaCoordinate>> {
-    private static final String TAG = "CoordGetterTask";
-    private static final String coordEndpoint = "https://dariocast.altervista.org/miserere/api/coordinate.php";
-    private OkHttpClient client;
-    private Request request;
-
-    CoordGetterTask() {
-        client = new OkHttpClient();
-        request = new Request.Builder()
-                .url(coordEndpoint)
-                .build();
-    }
-
-    @Override
-    protected List<CoppiaCoordinate> doInBackground(Void... voids) {
-        JSONArray coordinate = null;
-        List<Coordinate> coordTrovate = new ArrayList<>();
-        try (Response response = client.newCall(request).execute()) {
-            Log.d(TAG,"Ottengo response");
-            coordinate = new JSONArray(response.body().string());
-
-            if (coordinate.length()>0) {
-                for (int i = 0; i < coordinate.length(); i++) {
-                    JSONObject coordinata = coordinate.getJSONObject(i);
-                    String confraternita = coordinata.getString("confraternita");
-                    String colore = coordinata.getString("colore");
-                    double lat = Double.parseDouble(coordinata.getJSONObject("coordinate").getString("lat"));
-                    double lon = Double.parseDouble(coordinata.getJSONObject("coordinate").getString("lon"));
-                    String estremo = coordinata.getJSONObject("coordinate").getString("estremo");
-
-                    coordTrovate.add(new Coordinate(confraternita, colore, lat,lon,estremo));
-                }
-            }
-        } catch (IOException e) {
-            Log.e(TAG,e.getMessage());
-            e.printStackTrace();
-        } catch (JSONException e) {
-            Log.e(TAG,e.getMessage());
-            e.printStackTrace();
-        }
-
-        Log.d(TAG,"Coordinate trovate: "+coordTrovate.toString());
-        List<CoppiaCoordinate> coppie = new ArrayList<>();
-        Map<String,Coordinate> teste = new HashMap<>();
-        Map<String,Coordinate> code = new HashMap<>();
-        for (Coordinate coordTrovata: coordTrovate) {
-            if(coordTrovata.estremo.equals("testa")) {
-                teste.put(coordTrovata.confraternita, coordTrovata);
-            } else {
-               code.put(coordTrovata.confraternita, coordTrovata);
-            }
-        }
-        for (Map.Entry<String,Coordinate> testa: teste.entrySet()) {
-            coppie.add(new CoppiaCoordinate(testa.getValue(),code.get(testa.getKey())));
-        }
-        return coppie;
-    }
-}
 
 class CoordTesteGetterTask extends AsyncTask<Void, Void, List<Coordinate>> {
     private static final String TAG = "CoordTesteGetterTask";
@@ -243,13 +191,12 @@ class CoordTesteGetterTask extends AsyncTask<Void, Void, List<Coordinate>> {
             if (coordinate.length()>0) {
                 for (int i = 0; i < coordinate.length(); i++) {
                     JSONObject coordinata = coordinate.getJSONObject(i);
-                    String confraternita = coordinata.getString("confraternita");
-                    String colore = coordinata.getString("colore");
+                    int confraternitaId = Integer.parseInt(coordinata.getString("confraternitaId"));
                     double lat = Double.parseDouble(coordinata.getJSONObject("coordinate").getString("lat"));
                     double lon = Double.parseDouble(coordinata.getJSONObject("coordinate").getString("lon"));
                     String estremo = coordinata.getJSONObject("coordinate").getString("estremo");
 
-                    coordTeste.add(new Coordinate(confraternita, colore,lat,lon,estremo));
+                    coordTeste.add(new Coordinate(confraternitaId,lat,lon,estremo));
                 }
             }
         } catch (IOException e) {
@@ -261,5 +208,42 @@ class CoordTesteGetterTask extends AsyncTask<Void, Void, List<Coordinate>> {
         Log.d(TAG,"Coordinate trovate: "+coordTeste.toString());
 
         return coordTeste;
+    }
+}
+
+class ConfraternitaByIdTask extends AsyncTask<Integer, Void, Confraternita> {
+    private static final String TAG = "ConfraternitaByIdTask";
+    private static final String coordEndpoint = "https://dariocast.altervista.org/miserere/api/confraternita.php";
+    private OkHttpClient client;
+    private Request request;
+
+    ConfraternitaByIdTask() {
+        client = new OkHttpClient();
+    }
+
+    @Override
+    protected Confraternita doInBackground(Integer... ids) {
+        Confraternita confraternita = null;
+        String queryUrl = coordEndpoint + "?id="+ids[0];
+        request = new Request.Builder()
+                .url(queryUrl)
+                .build();
+        try (Response response = client.newCall(request).execute()) {
+            Log.d(TAG,"Ottengo response");
+            JSONObject confraternitaJson = new JSONObject(response.body().string());
+            confraternita = new Confraternita(
+                    confraternitaJson.getInt("id"),
+                    confraternitaJson.getString("nome"),
+                    confraternitaJson.getString("colore"),
+                    confraternitaJson.getString("passcode")
+            );
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        Log.d(TAG,"Confraternita trovata: "+confraternita.toString());
+
+        return confraternita;
     }
 }

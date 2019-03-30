@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
-    tools:context=".MainActivity"
+    tools:context=".activity.MainActivity"
     tools:showIn="@layout/activity_main">
 
     <fragment xmlns:android="http://schemas.android.com/apk/res/android"
@@ -14,7 +14,7 @@
         android:id="@+id/map"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        map:cameraZoom="17"
+        map:cameraZoom="16"
         map:mapType="hybrid"
         map:uiCompass="false"
         map:uiRotateGestures="false"
